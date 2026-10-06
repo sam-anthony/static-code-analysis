@@ -14,6 +14,14 @@ DB_SCHEMA = """
         date        TEXT    NOT NULL,
         capacity    INTEGER NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS attendees (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        event_id    INTEGER NOT NULL,
+        name        TEXT    NOT NULL,
+        email       TEXT    NOT NULL,
+        on_waitlist INTEGER NOT NULL DEFAULT 0,
+        FOREIGN KEY (event_id) REFERENCES events(id)
+    );
     INSERT INTO events (name, description, location, date, capacity) VALUES
         ('AI in the Enterprise', 'A full-day conference.', 'New York, NY', '2026-09-18', 300),
         ('DevOps & Platform Engineering Summit', 'Best practices in CI/CD.', 'Armonk, NY', '2026-10-02', 150),
@@ -75,3 +83,39 @@ def test_events_ordered_by_date(client):
     data = response.json()
     dates = [e["date"] for e in data]
     assert dates == sorted(dates)
+
+
+def test_signup(client):
+    response = client.post("/events/1/signup", json={"name": "Jane Smith", "email": "jane@example.com"})
+    assert response.status_code == 201
+    data = response.json()
+    assert data["event_id"] == 1
+    assert data["name"] == "Jane Smith"
+    assert data["email"] == "jane@example.com"
+    assert data["on_waitlist"] == False
+
+
+def test_signup_waitlist(client):
+    response = client.post("/events/3/signup", json={"name": "Jane Smith", "email": "jane@example.com"})
+    assert response.status_code == 201
+
+    response2 = client.post("/events/3/signup", json={"name": "Bob Jones", "email": "bob@example.com"})
+    assert response2.status_code == 201
+
+
+def test_get_roster(client):
+    client.post("/events/1/signup", json={"name": "Jane Smith", "email": "jane@example.com"})
+    response = client.get("/events/1/attendees")
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    assert any(a["attendee_name"] == "Jane Smith" for a in data)
+
+
+def test_search_attendees(client):
+    client.post("/events/1/signup", json={"name": "Jane Smith", "email": "jane@example.com"})
+    response = client.get("/events/1/attendees/search?name=Jane")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) >= 1
+    assert data[0]["attendee_name"] == "Jane Smith"

@@ -23,6 +23,15 @@ def init_db():
             date        TEXT    NOT NULL,
             capacity    INTEGER NOT NULL
         );
+
+        CREATE TABLE IF NOT EXISTS attendees (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_id    INTEGER NOT NULL,
+            name        TEXT    NOT NULL,
+            email       TEXT    NOT NULL,
+            on_waitlist INTEGER NOT NULL DEFAULT 0,
+            FOREIGN KEY (event_id) REFERENCES events(id)
+        );
     """)
     db.commit()
 
